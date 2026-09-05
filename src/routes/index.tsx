@@ -125,8 +125,8 @@ function PrintScheduler() {
   };
 
   const processNext = () => {
-    if (activeJob || queuedJobs.length === 0) return;
     const next = queuedJobs[0];
+    if (activeJob || !next) return;
     setJobs((prev) => prev.map((j) => (j.id === next.id ? { ...j, status: "Printing" as Status } : j)));
     setPrintingJobId(next.id);
   };
