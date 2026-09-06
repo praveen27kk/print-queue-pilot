@@ -4,10 +4,12 @@ import {
   STATUS_STYLES,
   timeAgo,
   useJobs,
+  type Job,
   type Priority,
   type Status,
 } from "@/lib/jobs-store";
 import { useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 
 export function PriorityBadge({ priority }: { priority: Priority }) {
   return (
@@ -166,6 +168,105 @@ export function PlaceholderPage({ title }: { title: string }) {
     <div className="rounded-xl border bg-card p-10 text-center shadow-sm">
       <h2 className="text-lg font-semibold">{title}</h2>
       <p className="mt-2 text-sm text-muted-foreground">Coming soon</p>
+    </div>
+  );
+}
+function JobsListTable({
+  jobs,
+  emptyMessage,
+  showCancel = false,
+}: {
+  jobs: Job[];
+  emptyMessage: string;
+  showCancel?: boolean;
+}) {
+  const { cancelJob } = useJobs();
+
+  return (
+    <section className="rounded-xl border bg-card shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <th className="px-5 py-3 font-medium">#</th>
+              <th className="px-5 py-3 font-medium">Document</th>
+              <th className="px-5 py-3 font-medium">Pages</th>
+              <th className="px-5 py-3 font-medium">Priority</th>
+              <th className="px-5 py-3 font-medium">Status</th>
+              <th className="px-5 py-3 font-medium">Submitted</th>
+              {showCancel && <th className="px-5 py-3 font-medium"></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {jobs.map((job, i) => (
+              <tr key={job.id} className="border-b last:border-0 hover:bg-secondary/50">
+                <td className="px-5 py-3 text-muted-foreground">{i + 1}</td>
+                <td className="px-5 py-3 font-medium">{job.document}</td>
+                <td className="px-5 py-3 tabular-nums text-muted-foreground">{job.pages}</td>
+                <td className="px-5 py-3"><PriorityBadge priority={job.priority} /></td>
+                <td className="px-5 py-3"><StatusBadge status={job.status} /></td>
+                <td className="px-5 py-3 text-muted-foreground">{timeAgo(job.submittedAt)}</td>
+                {showCancel && (
+                  <td className="px-5 py-3 text-right">
+                    {job.status === "Queued" && (
+                      <button
+                        onClick={() => cancelJob(job.id)}
+                        aria-label={`Cancel ${job.document}`}
+                        className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-transparent"
+                      >
+                        <X className="size-3.5" />
+                        Cancel
+                      </button>
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))}
+            {jobs.length === 0 && (
+              <tr>
+                <td colSpan={showCancel ? 7 : 6} className="px-5 py-10 text-center text-muted-foreground">
+                  {emptyMessage}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+export function MyJobsPage() {
+  const { user } = useAuth();
+  const { jobs } = useJobs();
+  const myJobs = jobs
+    .filter((j) => j.userId === user?.id)
+    .sort((a, b) => b.submittedAt - a.submittedAt);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-lg font-semibold">My Jobs</h1>
+        <p className="text-sm text-muted-foreground">Every job you've submitted, across all statuses.</p>
+      </div>
+      <JobsListTable jobs={myJobs} emptyMessage="You haven't submitted any jobs yet." showCancel />
+    </div>
+  );
+}
+
+export function JobHistoryPage() {
+  const { jobs } = useJobs();
+  const history = jobs
+    .filter((j) => j.status === "Completed" || j.status === "Cancelled")
+    .sort((a, b) => b.submittedAt - a.submittedAt);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-lg font-semibold">Job History</h1>
+        <p className="text-sm text-muted-foreground">Completed and cancelled jobs across the whole queue.</p>
+      </div>
+      <JobsListTable jobs={history} emptyMessage="No completed or cancelled jobs yet." />
     </div>
   );
 }

@@ -13,6 +13,7 @@ export interface Job {
   status: Status;
   submittedAt: number;
   sequenceNumber: number;
+  userId: string;
 }
 
 export const PRIORITY_RANK: Record<Priority, number> = { Urgent: 0, Normal: 1, Low: 2 };
@@ -46,6 +47,7 @@ interface JobRow {
   status: Status;
   sequence_number: number;
   created_at: string;
+  user_id: string;
 }
 
 function rowToJob(row: JobRow): Job {
@@ -57,6 +59,7 @@ function rowToJob(row: JobRow): Job {
     status: row.status,
     submittedAt: new Date(row.created_at).getTime(),
     sequenceNumber: row.sequence_number,
+    userId: row.user_id,
   };
 }
 
