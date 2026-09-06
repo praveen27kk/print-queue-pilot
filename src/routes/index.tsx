@@ -1,5 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Check, Printer } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -23,6 +25,29 @@ const BULLETS = [
 
 function SignIn() {
   const navigate = useNavigate();
+  const { signIn, signUp } = useAuth();
+
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const action = mode === "signin" ? signIn : signUp;
+    const { error } = await action(email, password);
+
+    setLoading(false);
+    if (error) {
+      setError(error);
+      return;
+    }
+    navigate({ to: "/app" });
+  };
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
@@ -70,23 +95,22 @@ function SignIn() {
 
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-sm rounded-xl border bg-card p-7 shadow-sm">
-            <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">
+              {mode === "signin" ? "Sign in" : "Create an account"}
+            </h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
               Print Job Scheduler — manage your office print queue.
             </p>
 
-            <form
-              className="mt-6 space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                navigate({ to: "/app" });
-              }}
-            >
+            <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label htmlFor="email" className="mb-1.5 block text-sm font-medium">Email</label>
                 <input
                   id="email"
                   type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30"
                 />
@@ -96,15 +120,27 @@ function SignIn() {
                 <input
                   id="password"
                   type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30"
                 />
               </div>
+
+              {error && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {error}
+                </p>
+              )}
+
               <button
                 type="submit"
-                className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                disabled={loading}
+                className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
               >
-                Sign in
+                {loading ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
               </button>
             </form>
 
@@ -112,9 +148,16 @@ function SignIn() {
               <button type="button" className="text-muted-foreground hover:text-foreground">
                 Forgot password?
               </button>
-              <Link to="/app" className="font-medium text-primary hover:underline">
-                Create an account
-              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === "signin" ? "signup" : "signin");
+                  setError(null);
+                }}
+                className="font-medium text-primary hover:underline"
+              >
+                {mode === "signin" ? "Create an account" : "Already have an account?"}
+              </button>
             </div>
           </div>
         </div>

@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { JobsProvider } from "@/lib/jobs-store";
 import { SearchProvider, useSearch } from "@/lib/search-context";
-
+import { useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth-context";
 export const Route = createFileRoute("/app")({
   head: () => ({
     meta: [
@@ -60,6 +62,22 @@ function TopBar() {
 }
 
 function AppLayout() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate({ to: "/" });
+    }
+  }, [loading, user, navigate]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
   return (
     <JobsProvider>
       <SearchProvider>
