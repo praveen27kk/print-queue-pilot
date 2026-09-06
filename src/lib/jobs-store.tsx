@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "./supabase";
 import { useAuth } from "./auth-context";
-
+import { PriorityScheduler } from "./scheduler";
 export type Priority = "Urgent" | "Normal" | "Low";
 export type Status = "Queued" | "Printing" | "Completed" | "Cancelled";
 
@@ -102,16 +102,12 @@ export function JobsProvider({ children }: { children: ReactNode }) {
 
   // Priority queue ordering: Urgent before Normal before Low, and within
   // the same priority, whichever arrived first (lowest sequence_number).
-  const queuedJobs = useMemo(
-    () =>
-      jobs
-        .filter((j) => j.status === "Queued")
-        .sort(
-          (a, b) =>
-            PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.sequenceNumber - b.sequenceNumber,
-        ),
-    [jobs],
-  );
+    // The Live Queue's order now comes directly from the MinHeap, not a
+  // plain array sort — this is the actual data structure driving the UI.
+  const queuedJobs = useMemo(() => {
+    const scheduler = new PriorityScheduler(jobs.filter((j) => j.status === "Queued"));
+    return scheduler.peekOrderedQueue();
+  }, [jobs]);
 
   const activeJob = jobs.find((j) => j.status === "Printing") ?? null;
   const completedJobs = jobs.filter((j) => j.status === "Completed");
@@ -149,9 +145,11 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     // Priority-queue "extract-min": take the queued job with the lowest
     // priority number, and among ties the lowest sequence_number.
       processNext: async () => {
-        if (activeJob) return;
-        const next = queuedJobs[0];
-        if (!next) return;
+      if (activeJob) return;
+      // extractNext() is the heap's actual "pop the highest-priority job" operation.
+      const scheduler = new PriorityScheduler(queuedJobs);
+      const next = scheduler.extractNext();
+      if (!next) return;
 
       const { error: startError } = await supabase
         .from("jobs")
